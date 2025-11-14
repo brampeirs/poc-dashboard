@@ -36,6 +36,18 @@ const netWorthData = [
   { month: "2025-11", label: "2025", value: 280000 },
 ];
 
+type MonthNote = {
+  month: string;
+  note: string;
+};
+
+const monthNotes: MonthNote[] = [
+  { month: "2025-01", note: "Bonus ontvangen van werkgever" },
+  { month: "2025-03", note: "Auto reparatie (€2.500)" },
+  { month: "2025-06", note: "Vakantie naar Spanje" },
+  { month: "2025-09", note: "Nieuwe laptop gekocht" },
+];
+
 const accountTypeData = [
   { name: "Zicht", value: 15000 },
   { name: "Spaar", value: 120000 },
@@ -58,7 +70,7 @@ type FixedCost = {
   kind: "vast" | "variabel";
 };
 
-const fixedCosts: FixedCost[] = [
+const initialFixedCosts: FixedCost[] = [
   {
     name: "Hypothecaire lening",
     amount: 1000,
@@ -100,8 +112,6 @@ const euro = (n: number) =>
   });
 
 type Range = "all" | "ytd" | "1y" | "6m";
-
-type SavingsRange = "all" | "12m" | "6m";
 
 const rangeLabels: Record<Range, string> = {
   all: "Alles",
@@ -246,7 +256,20 @@ const CashflowCard: React.FC<{
 
 const Dashboard: React.FC = () => {
   const [range, setRange] = useState<Range>("all");
-  const [savingsRange, setSavingsRange] = useState<SavingsRange>("12m");
+  const [isNetWorthExpanded, setIsNetWorthExpanded] = useState(false);
+  const [estimatedMonthlyIncome, setEstimatedMonthlyIncome] = useState(5000);
+  const [yearlySavingsTarget, setYearlySavingsTarget] = useState(10000);
+  const [isEditingIncome, setIsEditingIncome] = useState(false);
+  const [isEditingTarget, setIsEditingTarget] = useState(false);
+  const [fixedCosts, setFixedCosts] = useState<FixedCost[]>(initialFixedCosts);
+  const [editingCostIndex, setEditingCostIndex] = useState<number | null>(null);
+  const [isAddingCost, setIsAddingCost] = useState(false);
+  const [newCost, setNewCost] = useState<FixedCost>({
+    name: "",
+    amount: 0,
+    frequency: "monthly",
+    kind: "vast",
+  });
 
   const filteredData = useMemo(() => {
     if (range === "all") return netWorthData;
@@ -267,32 +290,30 @@ const Dashboard: React.FC = () => {
     });
   }, [range]);
 
+  const filteredNotes = useMemo(() => {
+    const filteredMonths = new Set(filteredData.map((d) => d.month));
+    return monthNotes.filter((note) => filteredMonths.has(note.month));
+  }, [filteredData]);
+
   const currentNetWorth = netWorthData[netWorthData.length - 1].value;
   const previousNetWorth = netWorthData[netWorthData.length - 2].value;
   const delta = currentNetWorth - previousNetWorth;
 
-  const { avgMonthlySavings, avgYearlySavings, savingsLabel } = useMemo(() => {
+  // Gemiddeld spaarsaldo - altijd op basis van laatste 12 maanden
+  const { avgMonthlySavings, avgYearlySavings } = useMemo(() => {
     if (netWorthData.length < 2) {
       return {
         avgMonthlySavings: 0,
         avgYearlySavings: 0,
-        savingsLabel: "onvoldoende data",
       } as const;
     }
 
     const last = netWorthData[netWorthData.length - 1];
     const lastDate = new Date(last.month + "-01");
 
-    let fromDate: Date;
-    if (savingsRange === "all") {
-      fromDate = new Date(netWorthData[0].month + "-01");
-    } else if (savingsRange === "12m") {
-      fromDate = new Date(lastDate);
-      fromDate.setFullYear(fromDate.getFullYear() - 1);
-    } else {
-      fromDate = new Date(lastDate);
-      fromDate.setMonth(fromDate.getMonth() - 6);
-    }
+    // Altijd laatste 12 maanden
+    const fromDate = new Date(lastDate);
+    fromDate.setFullYear(fromDate.getFullYear() - 1);
 
     const points = netWorthData.filter((d) => {
       const date = new Date(d.month + "-01");
@@ -303,7 +324,6 @@ const Dashboard: React.FC = () => {
       return {
         avgMonthlySavings: 0,
         avgYearlySavings: 0,
-        savingsLabel: "onvoldoende data",
       } as const;
     }
 
@@ -318,27 +338,11 @@ const Dashboard: React.FC = () => {
     const monthly = totalDelta / periods;
     const yearly = monthly * 12;
 
-    let label: string;
-    switch (savingsRange) {
-      case "all":
-        label = "je volledige historiek";
-        break;
-      case "12m":
-        label = "de laatste 12 maanden";
-        break;
-      case "6m":
-        label = "de laatste 6 maanden";
-        break;
-      default:
-        label = "de gekozen periode";
-    }
-
     return {
       avgMonthlySavings: monthly,
       avgYearlySavings: yearly,
-      savingsLabel: label,
     } as const;
-  }, [savingsRange]);
+  }, []);
 
   // ---- FORECAST + TIME-TO-GOAL LOGIC ----
   const projectedBalance12m = currentNetWorth + avgMonthlySavings * 12;
@@ -375,9 +379,14 @@ const Dashboard: React.FC = () => {
       .reduce((sum, acc) => sum + acc.value, 0);
   }, []);
 
-  // Mock value voor inspiratie - in jouw app haal je dit idealiter uit je uitgavenanalyse
-  const avgMonthlyExpenses = 2500;
-  const runwayMonths = liquidNetWorth / avgMonthlyExpenses;
+  const investmentsNetWorth = useMemo(() => {
+    return accountTypeData
+      .filter((acc) => acc.name === "Beleggingen")
+      .reduce((sum, acc) => sum + acc.value, 0);
+  }, []);
+
+  const liquidPct = currentNetWorth > 0 ? (liquidNetWorth / currentNetWorth) * 100 : 0;
+  const investmentsPct = currentNetWorth > 0 ? (investmentsNetWorth / currentNetWorth) * 100 : 0;
 
   const { ytdChange, ytdChangePct } = useMemo(() => {
     const last = netWorthData[netWorthData.length - 1];
@@ -411,7 +420,63 @@ const Dashboard: React.FC = () => {
     return streak;
   }, []);
 
-  const yearlySavingsTarget = 10000; // Mock-doel ter inspiratie
+  // Spaartrend berekening (laatste 12 maanden)
+  const savingsTrend = useMemo(() => {
+    if (netWorthData.length < 3) {
+      return { trend: 0, direction: "stable" as const };
+    }
+
+    // Neem laatste 12 maanden (of minder als er niet genoeg data is)
+    const last = netWorthData[netWorthData.length - 1];
+    const lastDate = new Date(last.month + "-01");
+    const fromDate = new Date(lastDate);
+    fromDate.setFullYear(fromDate.getFullYear() - 1);
+
+    const points = netWorthData.filter((d) => {
+      const date = new Date(d.month + "-01");
+      return date >= fromDate && date <= lastDate;
+    });
+
+    if (points.length < 3) {
+      return { trend: 0, direction: "stable" as const };
+    }
+
+    // Bereken maandelijkse deltas
+    const deltas: number[] = [];
+    for (let i = 1; i < points.length; i++) {
+      deltas.push(points[i].value - points[i - 1].value);
+    }
+
+    // Simpele lineaire regressie op de deltas
+    const n = deltas.length;
+    const xMean = (n - 1) / 2;
+    const yMean = deltas.reduce((sum, d) => sum + d, 0) / n;
+
+    let numerator = 0;
+    let denominator = 0;
+
+    for (let i = 0; i < n; i++) {
+      const xDiff = i - xMean;
+      const yDiff = deltas[i] - yMean;
+      numerator += xDiff * yDiff;
+      denominator += xDiff * xDiff;
+    }
+
+    const slope = denominator !== 0 ? numerator / denominator : 0;
+
+    // Bepaal richting
+    let direction: "improving" | "declining" | "stable";
+    if (Math.abs(slope) < 50) {
+      direction = "stable";
+    } else if (slope > 0) {
+      direction = "improving";
+    } else {
+      direction = "declining";
+    }
+
+    return { trend: slope, direction };
+  }, []);
+
   const targetProgress = ytdChange;
   const targetProgressPct = yearlySavingsTarget
     ? Math.max(0, Math.min(100, (targetProgress / yearlySavingsTarget) * 100))
@@ -419,13 +484,47 @@ const Dashboard: React.FC = () => {
 
   const totalFixedMonthlyCosts = useMemo(() => {
     return fixedCosts.reduce((sum, cost) => sum + monthlyFromFixedCost(cost), 0);
-  }, []);
+  }, [fixedCosts]);
 
-  const estimatedMonthlyIncome = 5000; // mock-inkomen voor inspiratie
+  const handleDeleteCost = (index: number) => {
+    setFixedCosts(fixedCosts.filter((_, i) => i !== index));
+  };
+
+  const handleAddCost = () => {
+    if (newCost.name && newCost.amount > 0) {
+      setFixedCosts([...fixedCosts, newCost]);
+      setNewCost({ name: "", amount: 0, frequency: "monthly", kind: "vast" });
+      setIsAddingCost(false);
+    }
+  };
+
+  const handleUpdateCost = (index: number, updatedCost: FixedCost) => {
+    const updated = [...fixedCosts];
+    updated[index] = updatedCost;
+    setFixedCosts(updated);
+    setEditingCostIndex(null);
+  };
 
   const avgMonthlySpending = useMemo(() => {
     return estimatedMonthlyIncome - avgMonthlySavings;
   }, [estimatedMonthlyIncome, avgMonthlySavings]);
+
+  const runwayMonths = avgMonthlySpending > 0 ? liquidNetWorth / avgMonthlySpending : 0;
+
+  // Emergency Fund Status (6 maanden = veilig)
+  const emergencyFundMonths = 6;
+  const emergencyFundTarget = avgMonthlySpending * emergencyFundMonths;
+  const emergencyFundPct = emergencyFundTarget > 0 ? (liquidNetWorth / emergencyFundTarget) * 100 : 0;
+  const emergencyFundStatus =
+    emergencyFundPct >= 100 ? "excellent" :
+    emergencyFundPct >= 75 ? "good" :
+    emergencyFundPct >= 50 ? "fair" :
+    "insufficient";
+
+  // Financial Independence (4% rule: vermogen / (jaarlijkse uitgaven × 25))
+  const yearlySpending = avgMonthlySpending * 12;
+  const fiTarget = yearlySpending * 25;
+  const fiPct = fiTarget > 0 ? (currentNetWorth / fiTarget) * 100 : 0;
 
   const totalCosts = avgMonthlySpending;
   const savingsPctOfIncome = estimatedMonthlyIncome
@@ -451,16 +550,69 @@ const Dashboard: React.FC = () => {
 
       {/* Top row: total net worth + delta */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mb-6">
-        {/* Totaal vermogen */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-800">Totaal Vermogen</CardTitle>
-            <CardDescription className="mt-1">Per november 2025</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-2">
-              <div className="text-2xl font-semibold text-emerald-500">{euro(currentNetWorth)}</div>
+        {/* Totaal vermogen - Expandable */}
+        <Card className="h-full flex flex-col">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-medium text-slate-800">Totaal Vermogen</CardTitle>
+                <CardDescription className="mt-1">Per november 2025</CardDescription>
+              </div>
+              <button
+                onClick={() => setIsNetWorthExpanded(!isNetWorthExpanded)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label={isNetWorthExpanded ? "Inklappen" : "Uitklappen"}
+              >
+                <svg
+                  className={cn("w-5 h-5 transition-transform", isNetWorthExpanded && "rotate-180")}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
             </div>
+          </CardHeader>
+          <CardContent className="pt-1 space-y-3 flex-1">
+            <div className="text-2xl font-semibold text-emerald-500">{euro(currentNetWorth)}</div>
+
+            {isNetWorthExpanded && (
+              <>
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500">Liquide middelen</span>
+                    <span className="font-medium text-slate-900">
+                      {euro(liquidNetWorth)} ({liquidPct.toFixed(0)}%)
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500">Beleggingen</span>
+                    <span className="font-medium text-slate-900">
+                      {euro(investmentsNetWorth)} ({investmentsPct.toFixed(0)}%)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Visual bar */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-slate-500">
+                    <span>Liquide vs Beleggingen</span>
+                    <span>{liquidPct.toFixed(0)}% / {investmentsPct.toFixed(0)}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden flex">
+                    <div
+                      className="h-full bg-blue-500"
+                      style={{ width: `${liquidPct.toFixed(0)}%` }}
+                    />
+                    <div
+                      className="h-full bg-emerald-500"
+                      style={{ width: `${investmentsPct.toFixed(0)}%` }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -486,61 +638,17 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Savings & spending row */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mb-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-6">
         {/* Gemiddeld spaarsaldo */}
         <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Gemiddeld spaarsaldo</CardTitle>
-            <CardDescription className="mt-1 text-xs text-slate-500 leading-relaxed">Op basis van {savingsLabel}.</CardDescription>
+            <CardDescription className="mt-1 text-xs text-slate-500 leading-relaxed">Op basis van de laatste 12 maanden.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1 flex-1">
-            <div className="flex flex-col justify-between gap-4">
-              <div>
-                <div className="space-y-2">
-                  <div className="text-xl font-semibold text-slate-900">{euro(avgMonthlySavings)} / maand</div>
-                  <div className="text-xs text-slate-500 leading-relaxed">≈ {euro(avgYearlySavings)} per jaar</div>
-                </div>
-                <p className="mt-2 text-xs text-slate-500 leading-relaxed">Inclusief alle rekeningen.</p>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-2">
-                <Button
-                  size="xs"
-                  variant="outline"
-                  className={cn(
-                    "rounded-full h-7 px-3 text-[11px]",
-                    savingsRange === "all" &&
-                      "bg-slate-900 !text-slate-50 border-slate-900 hover:bg-slate-900 hover:!text-slate-50"
-                  )}
-                  onClick={() => setSavingsRange("all")}
-                >
-                  Alles
-                </Button>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  className={cn(
-                    "rounded-full h-7 px-3 text-[11px] text-slate-500",
-                    savingsRange === "12m" &&
-                      "bg-slate-900 !text-slate-50 hover:bg-slate-900 hover:!text-slate-50"
-                  )}
-                  onClick={() => setSavingsRange("12m")}
-                >
-                  Laatste jaar
-                </Button>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  className={cn(
-                    "rounded-full h-7 px-3 text-[11px] text-slate-500",
-                    savingsRange === "6m" &&
-                      "bg-slate-900 !text-slate-50 hover:bg-slate-900 hover:!text-slate-50"
-                  )}
-                  onClick={() => setSavingsRange("6m")}
-                >
-                  6 maanden
-                </Button>
-              </div>
-            </div>
+          <CardContent className="pt-1 space-y-2 flex-1">
+            <div className="text-xl font-semibold text-slate-900">{euro(avgMonthlySavings)} / maand</div>
+            <div className="text-xs text-slate-500 leading-relaxed">≈ {euro(avgYearlySavings)} per jaar</div>
+            <p className="text-xs text-slate-500 leading-relaxed">Inclusief alle rekeningen.</p>
           </CardContent>
         </Card>
 
@@ -555,6 +663,33 @@ const Dashboard: React.FC = () => {
             <p className="text-xs text-slate-500 leading-relaxed">Inclusief vaste + variabele uitgaven.</p>
           </CardContent>
         </Card>
+
+        {/* Savings Rate */}
+        <Card className="h-full flex flex-col">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-800">Savings Rate</CardTitle>
+            <CardDescription className="mt-1 text-xs text-slate-500 leading-relaxed">Percentage van je inkomen dat je spaart.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-1 space-y-3 flex-1">
+            <div className="text-xl font-semibold text-slate-900">{savingsPctOfIncome.toFixed(1)}%</div>
+            <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div
+                className={cn(
+                  "h-full transition-all",
+                  savingsPctOfIncome < 20 ? "bg-rose-500" :
+                  savingsPctOfIncome < 40 ? "bg-amber-500" :
+                  "bg-emerald-500"
+                )}
+                style={{ width: `${Math.min(100, savingsPctOfIncome)}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              {savingsPctOfIncome < 20 && "Probeer meer te sparen"}
+              {savingsPctOfIncome >= 20 && savingsPctOfIncome < 40 && "Goed bezig!"}
+              {savingsPctOfIncome >= 40 && "Uitstekend spaargedrag! 🎉"}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Extra metrics row */}
@@ -567,19 +702,57 @@ const Dashboard: React.FC = () => {
           </CardHeader>
           <CardContent className="pt-1 space-y-2 flex-1">
             <div className="text-xl font-semibold text-slate-900">{runwayMonths.toFixed(1)} maanden</div>
-            <p className="text-xs text-slate-500">Op basis van {euro(avgMonthlyExpenses)} uitgaven per maand.</p>
+            <p className="text-xs text-slate-500">Op basis van {euro(avgMonthlySpending)} uitgaven per maand.</p>
           </CardContent>
         </Card>
 
-        {/* Geschat inkomen */}
+        {/* Geschat inkomen - Editable */}
         <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-800">Geschat inkomen</CardTitle>
-            <CardDescription className="text-xs text-slate-500">Je totale geschatte maandelijkse inkomsten.</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-medium text-slate-800">Geschat inkomen</CardTitle>
+                <CardDescription className="text-xs text-slate-500">Je totale geschatte maandelijkse inkomsten.</CardDescription>
+              </div>
+              <button
+                onClick={() => setIsEditingIncome(!isEditingIncome)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label={isEditingIncome ? "Annuleren" : "Bewerken"}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {isEditingIncome ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  )}
+                </svg>
+              </button>
+            </div>
           </CardHeader>
           <CardContent className="pt-1 space-y-2 flex-1">
-            <div className="text-xl font-semibold text-slate-900">{euro(estimatedMonthlyIncome)} / maand</div>
-            <p className="text-xs text-slate-500">Optioneel gecombineerd inkomen van Bram &amp; Liesbeth.</p>
+            {isEditingIncome ? (
+              <div className="space-y-2">
+                <input
+                  type="number"
+                  value={estimatedMonthlyIncome}
+                  onChange={(e) => setEstimatedMonthlyIncome(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Geschat inkomen"
+                  autoFocus
+                />
+                <button
+                  onClick={() => setIsEditingIncome(false)}
+                  className="w-full px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition-colors"
+                >
+                  Opslaan
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="text-xl font-semibold text-slate-900">{euro(estimatedMonthlyIncome)} / maand</div>
+                <p className="text-xs text-slate-500">Optioneel gecombineerd inkomen van Bram &amp; Liesbeth.</p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -630,23 +803,131 @@ const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Jaarlijks spaardoel */}
+        {/* Spaartrend */}
         <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-800">Jaarlijks spaardoel</CardTitle>
-            <CardDescription className="text-xs text-slate-500">Voorbeeld: {euro(yearlySavingsTarget)} in {lastPointYear}.</CardDescription>
+            <CardTitle className="text-sm font-medium text-slate-800">Spaartrend</CardTitle>
+            <CardDescription className="text-xs text-slate-500">Evolutie van je spaargedrag over de laatste 12 maanden.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-1 space-y-2 flex-1">
+            <div className="flex items-center gap-2">
+              <div
+                className={cn(
+                  "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
+                  savingsTrend.direction === "improving" ? "bg-emerald-50 text-emerald-700" :
+                  savingsTrend.direction === "declining" ? "bg-rose-50 text-rose-700" :
+                  "bg-slate-50 text-slate-700"
+                )}
+              >
+                {savingsTrend.direction === "improving" && "↗ Verbeterend"}
+                {savingsTrend.direction === "declining" && "↘ Dalend"}
+                {savingsTrend.direction === "stable" && "→ Stabiel"}
+              </div>
+            </div>
+            <p className="text-xs text-slate-500">
+              {savingsTrend.direction === "improving" && "Je spaargedrag verbetert! Blijf zo doorgaan."}
+              {savingsTrend.direction === "declining" && "Je spaargedrag daalt. Probeer meer te sparen."}
+              {savingsTrend.direction === "stable" && "Je spaargedrag is consistent."}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Jaarlijks spaardoel - Editable */}
+        <Card className="h-full flex flex-col">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-medium text-slate-800">Jaarlijks spaardoel</CardTitle>
+                <CardDescription className="text-xs text-slate-500">Voorbeeld: {euro(yearlySavingsTarget)} in {lastPointYear}.</CardDescription>
+              </div>
+              <button
+                onClick={() => setIsEditingTarget(!isEditingTarget)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label={isEditingTarget ? "Annuleren" : "Bewerken"}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {isEditingTarget ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  )}
+                </svg>
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-1 space-y-3 flex-1">
+            {isEditingTarget ? (
+              <div className="space-y-2">
+                <input
+                  type="number"
+                  value={yearlySavingsTarget}
+                  onChange={(e) => setYearlySavingsTarget(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Jaarlijks spaardoel"
+                  autoFocus
+                />
+                <button
+                  onClick={() => setIsEditingTarget(false)}
+                  className="w-full px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition-colors"
+                >
+                  Opslaan
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-baseline justify-between text-xs">
+                  <span className="text-slate-500">Totaal gespaard YTD</span>
+                  <span className="font-medium text-slate-900">{euro(Math.max(0, targetProgress))}</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full bg-emerald-500" style={{ width: `${targetProgressPct.toFixed(0)}%` }} />
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span>{targetProgressPct.toFixed(0)}% behaald</span>
+                  <span>Doel: {euro(yearlySavingsTarget)}</span>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Emergency Fund Status */}
+        <Card className="h-full flex flex-col">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-800">Emergency Fund</CardTitle>
+            <CardDescription className="text-xs text-slate-500">Voldoende buffer voor {emergencyFundMonths} maanden uitgaven.</CardDescription>
           </CardHeader>
           <CardContent className="pt-1 space-y-3 flex-1">
             <div className="flex items-baseline justify-between text-xs">
-              <span className="text-slate-500">Totaal gespaard YTD</span>
-              <span className="font-medium text-slate-900">{euro(Math.max(0, targetProgress))}</span>
+              <span className="text-slate-500">Liquide middelen</span>
+              <span className="font-medium text-slate-900">{euro(liquidNetWorth)}</span>
             </div>
             <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div className="h-full bg-emerald-500" style={{ width: `${targetProgressPct.toFixed(0)}%` }} />
+              <div
+                className={cn(
+                  "h-full transition-all",
+                  emergencyFundStatus === "excellent" ? "bg-emerald-500" :
+                  emergencyFundStatus === "good" ? "bg-blue-500" :
+                  emergencyFundStatus === "fair" ? "bg-amber-500" :
+                  "bg-rose-500"
+                )}
+                style={{ width: `${Math.min(100, emergencyFundPct)}%` }}
+              />
             </div>
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>{targetProgressPct.toFixed(0)}% behaald</span>
-              <span>Doel: {euro(yearlySavingsTarget)}</span>
+            <div className="flex items-center justify-between text-xs">
+              <span className={cn(
+                "font-medium",
+                emergencyFundStatus === "excellent" ? "text-emerald-700" :
+                emergencyFundStatus === "good" ? "text-blue-700" :
+                emergencyFundStatus === "fair" ? "text-amber-700" :
+                "text-rose-700"
+              )}>
+                {emergencyFundStatus === "excellent" && "Uitstekend"}
+                {emergencyFundStatus === "good" && "Goed"}
+                {emergencyFundStatus === "fair" && "Voldoende"}
+                {emergencyFundStatus === "insufficient" && "Onvoldoende"}
+              </span>
+              <span className="text-slate-500">Doel: {euro(emergencyFundTarget)}</span>
             </div>
           </CardContent>
         </Card>
@@ -655,11 +936,42 @@ const Dashboard: React.FC = () => {
         <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Projectie 12 maanden</CardTitle>
-            <CardDescription className="text-xs text-slate-500">Op basis van je huidige gemiddelde spaargedrag ({savingsLabel}).</CardDescription>
+            <CardDescription className="text-xs text-slate-500">Op basis van je huidige gemiddelde spaargedrag (laatste 12 maanden).</CardDescription>
           </CardHeader>
           <CardContent className="pt-1 space-y-2 flex-1">
             <div className="text-xl font-semibold text-slate-900">{euro(projectedBalance12m)}</div>
             <p className="text-xs text-slate-500">≈ {euro(projectedGrowth12m)} groei t.o.v. nu in één jaar.</p>
+          </CardContent>
+        </Card>
+
+        {/* Financial Independence */}
+        <Card className="h-full flex flex-col">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-slate-800">Financial Independence</CardTitle>
+            <CardDescription className="text-xs text-slate-500">Op basis van de 4% regel (25× jaarlijkse uitgaven).</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-1 space-y-3 flex-1">
+            <div className="flex items-baseline justify-between text-xs">
+              <span className="text-slate-500">Voortgang</span>
+              <span className="font-medium text-slate-900">{fiPct.toFixed(1)}%</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div
+                className="h-full bg-indigo-500 transition-all"
+                style={{ width: `${Math.min(100, fiPct)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>Huidig: {euro(currentNetWorth)}</span>
+              <span>FI: {euro(fiTarget)}</span>
+            </div>
+            <p className="text-xs text-slate-500">
+              {fiPct >= 100 && "Je bent financieel onafhankelijk! 🎉"}
+              {fiPct >= 75 && fiPct < 100 && "Bijna daar! Nog even volhouden."}
+              {fiPct >= 50 && fiPct < 75 && "Goed op weg naar financiële vrijheid."}
+              {fiPct >= 25 && fiPct < 50 && "Een kwart van de weg afgelegd."}
+              {fiPct < 25 && "Begin van de reis naar financiële onafhankelijkheid."}
+            </p>
           </CardContent>
         </Card>
 
@@ -787,7 +1099,7 @@ const Dashboard: React.FC = () => {
                 als extra inzicht en hoeft niet tot op de euro juist te zijn.
               </CardDescription>
             </div>
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" onClick={() => setIsAddingCost(true)}>
               Nieuwe vaste kost
             </Button>
           </div>
@@ -804,36 +1116,140 @@ const Dashboard: React.FC = () => {
               <p className="text-xs text-slate-500 mb-4 max-w-md">
                 Voeg je belangrijkste terugkerende kosten toe om een realistischer beeld te krijgen van je maandelijkse ruimte.
               </p>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" onClick={() => setIsAddingCost(true)}>
                 Nieuwe vaste kost
               </Button>
             </div>
           ) : (
             <div className="border border-slate-100 rounded-xl overflow-hidden overflow-x-auto">
-              <div className="grid min-w-[520px] grid-cols-[2fr_1fr_1fr_1fr] bg-slate-50 px-3 py-2 font-medium text-[11px] text-slate-500 uppercase tracking-wide">
+              <div className="grid min-w-[600px] grid-cols-[2fr_1fr_1fr_1fr_auto] bg-slate-50 px-3 py-2 font-medium text-[11px] text-slate-500 uppercase tracking-wide">
                 <span>Kost</span>
                 <span className="text-right">Bedrag</span>
                 <span className="text-right">Frequentie</span>
                 <span className="text-right">Maandelijks</span>
+                <span className="text-right">Acties</span>
               </div>
               <div className="max-h-[260px] overflow-auto">
                 {fixedCosts.map((cost, idx) => (
                   <div
                     key={cost.name + idx}
-                    className="grid min-w-[520px] grid-cols-[2fr_1fr_1fr_1fr] px-3 py-2 border-t border-slate-100 items-center"
+                    className="grid min-w-[600px] grid-cols-[2fr_1fr_1fr_1fr_auto] px-3 py-2 border-t border-slate-100 items-center"
                   >
-                    <div className="flex flex-col">
-                      <span className="text-slate-900 font-medium">{cost.name}</span>
-                    </div>
-                    <span className="text-right text-slate-900">{euro(cost.amount)}</span>
-                    <span className="text-right text-slate-500">
-                      {cost.frequency === "monthly" && "maandelijks"}
-                      {cost.frequency === "quarterly" && "per kwartaal"}
-                      {cost.frequency === "yearly" && "per jaar"}
-                    </span>
-                    <span className="text-right text-slate-900">{euro(monthlyFromFixedCost(cost))}</span>
+                    {editingCostIndex === idx ? (
+                      <>
+                        <input
+                          type="text"
+                          value={cost.name}
+                          onChange={(e) => handleUpdateCost(idx, { ...cost, name: e.target.value })}
+                          className="px-2 py-1 text-xs border border-slate-200 rounded"
+                        />
+                        <input
+                          type="number"
+                          value={cost.amount}
+                          onChange={(e) => handleUpdateCost(idx, { ...cost, amount: Number(e.target.value) })}
+                          className="px-2 py-1 text-xs border border-slate-200 rounded text-right"
+                        />
+                        <select
+                          value={cost.frequency}
+                          onChange={(e) => handleUpdateCost(idx, { ...cost, frequency: e.target.value as "monthly" | "quarterly" | "yearly" })}
+                          className="px-2 py-1 text-xs border border-slate-200 rounded text-right"
+                        >
+                          <option value="monthly">maandelijks</option>
+                          <option value="quarterly">per kwartaal</option>
+                          <option value="yearly">per jaar</option>
+                        </select>
+                        <span className="text-right text-slate-900 text-xs">{euro(monthlyFromFixedCost(cost))}</span>
+                        <div className="flex gap-1 justify-end">
+                          <button
+                            onClick={() => setEditingCostIndex(null)}
+                            className="px-2 py-1 text-xs text-emerald-600 hover:text-emerald-700"
+                          >
+                            ✓
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex flex-col">
+                          <span className="text-slate-900 font-medium">{cost.name}</span>
+                        </div>
+                        <span className="text-right text-slate-900">{euro(cost.amount)}</span>
+                        <span className="text-right text-slate-500">
+                          {cost.frequency === "monthly" && "maandelijks"}
+                          {cost.frequency === "quarterly" && "per kwartaal"}
+                          {cost.frequency === "yearly" && "per jaar"}
+                        </span>
+                        <span className="text-right text-slate-900">{euro(monthlyFromFixedCost(cost))}</span>
+                        <div className="flex gap-1 justify-end">
+                          <button
+                            onClick={() => setEditingCostIndex(idx)}
+                            className="px-2 py-1 text-xs text-slate-400 hover:text-slate-600"
+                            aria-label="Bewerken"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCost(idx)}
+                            className="px-2 py-1 text-xs text-rose-400 hover:text-rose-600"
+                            aria-label="Verwijderen"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
+                {isAddingCost && (
+                  <div className="grid min-w-[600px] grid-cols-[2fr_1fr_1fr_1fr_auto] px-3 py-2 border-t border-slate-100 items-center bg-slate-50">
+                    <input
+                      type="text"
+                      value={newCost.name}
+                      onChange={(e) => setNewCost({ ...newCost, name: e.target.value })}
+                      className="px-2 py-1 text-xs border border-slate-200 rounded"
+                      placeholder="Naam"
+                      autoFocus
+                    />
+                    <input
+                      type="number"
+                      value={newCost.amount || ""}
+                      onChange={(e) => setNewCost({ ...newCost, amount: Number(e.target.value) })}
+                      className="px-2 py-1 text-xs border border-slate-200 rounded text-right"
+                      placeholder="Bedrag"
+                    />
+                    <select
+                      value={newCost.frequency}
+                      onChange={(e) => setNewCost({ ...newCost, frequency: e.target.value as "monthly" | "quarterly" | "yearly" })}
+                      className="px-2 py-1 text-xs border border-slate-200 rounded text-right"
+                    >
+                      <option value="monthly">maandelijks</option>
+                      <option value="quarterly">per kwartaal</option>
+                      <option value="yearly">per jaar</option>
+                    </select>
+                    <span className="text-right text-slate-900 text-xs">{euro(monthlyFromFixedCost(newCost))}</span>
+                    <div className="flex gap-1 justify-end">
+                      <button
+                        onClick={handleAddCost}
+                        className="px-2 py-1 text-xs text-emerald-600 hover:text-emerald-700"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsAddingCost(false);
+                          setNewCost({ name: "", amount: 0, frequency: "monthly", kind: "vast" });
+                        }}
+                        className="px-2 py-1 text-xs text-slate-400 hover:text-slate-600"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -931,6 +1347,37 @@ const Dashboard: React.FC = () => {
               </AreaChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Notities sectie */}
+          {filteredNotes.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2 mb-3">
+                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <h4 className="text-sm font-medium text-slate-700">Notities</h4>
+                <span className="text-xs text-slate-400">({filteredNotes.length})</span>
+              </div>
+              <div className="space-y-2">
+                {filteredNotes.map((note) => {
+                  const date = new Date(note.month + "-01");
+                  const monthLabel = date.toLocaleDateString("nl-BE", {
+                    month: "short",
+                    year: "numeric",
+                  });
+                  return (
+                    <div
+                      key={note.month}
+                      className="flex items-start gap-3 text-xs p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      <span className="font-medium text-slate-500 min-w-[70px]">{monthLabel}</span>
+                      <span className="text-slate-700">{note.note}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
       </div>
