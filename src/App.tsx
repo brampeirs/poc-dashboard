@@ -259,8 +259,10 @@ const Dashboard: React.FC = () => {
   const [isNetWorthExpanded, setIsNetWorthExpanded] = useState(false);
   const [estimatedMonthlyIncome, setEstimatedMonthlyIncome] = useState(5000);
   const [yearlySavingsTarget, setYearlySavingsTarget] = useState(10000);
+  const [goalAmount, setGoalAmount] = useState(400000);
   const [isEditingIncome, setIsEditingIncome] = useState(false);
   const [isEditingTarget, setIsEditingTarget] = useState(false);
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>(initialFixedCosts);
   const [editingCostIndex, setEditingCostIndex] = useState<number | null>(null);
   const [isAddingCost, setIsAddingCost] = useState(false);
@@ -270,6 +272,7 @@ const Dashboard: React.FC = () => {
     frequency: "monthly",
     kind: "vast",
   });
+  const [showFIModal, setShowFIModal] = useState(false);
 
   const filteredData = useMemo(() => {
     if (range === "all") return netWorthData;
@@ -348,7 +351,6 @@ const Dashboard: React.FC = () => {
   const projectedBalance12m = currentNetWorth + avgMonthlySavings * 12;
   const projectedGrowth12m = avgMonthlySavings * 12;
 
-  const goalAmount = 400000;
   const remainingToGoal = goalAmount - currentNetWorth;
   const goalAlreadyReached = remainingToGoal <= 0;
   const goalReachable = avgMonthlySavings > 0 && !goalAlreadyReached;
@@ -525,6 +527,18 @@ const Dashboard: React.FC = () => {
   const yearlySpending = avgMonthlySpending * 12;
   const fiTarget = yearlySpending * 25;
   const fiPct = fiTarget > 0 ? (currentNetWorth / fiTarget) * 100 : 0;
+
+  // Tijd tot FI berekenen
+  const remainingToFI = fiTarget - currentNetWorth;
+  const monthsToFI = avgMonthlySavings > 0 ? remainingToFI / avgMonthlySavings : 0;
+  const yearsToFI = monthsToFI / 12;
+
+  const fiDate = new Date();
+  fiDate.setMonth(fiDate.getMonth() + Math.ceil(monthsToFI));
+  const fiDateString = fiDate.toLocaleDateString("nl-BE", {
+    month: "long",
+    year: "numeric",
+  });
 
   const totalCosts = avgMonthlySpending;
   const savingsPctOfIncome = estimatedMonthlyIncome
@@ -947,8 +961,23 @@ const Dashboard: React.FC = () => {
         {/* Financial Independence */}
         <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-800">Financial Independence</CardTitle>
-            <CardDescription className="text-xs text-slate-500">Op basis van de 4% regel (25× jaarlijkse uitgaven).</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-medium text-slate-800">Financial Independence</CardTitle>
+                  <button
+                    onClick={() => setShowFIModal(true)}
+                    className="text-slate-400 hover:text-slate-600 transition-colors"
+                    aria-label="Meer informatie"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
+                </div>
+                <CardDescription className="text-xs text-slate-500">Op basis van de 4% regel (25× jaarlijkse uitgaven).</CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="pt-1 space-y-3 flex-1">
             <div className="flex items-baseline justify-between text-xs">
@@ -965,30 +994,94 @@ const Dashboard: React.FC = () => {
               <span>Huidig: {euro(currentNetWorth)}</span>
               <span>FI: {euro(fiTarget)}</span>
             </div>
-            <p className="text-xs text-slate-500">
-              {fiPct >= 100 && "Je bent financieel onafhankelijk! 🎉"}
-              {fiPct >= 75 && fiPct < 100 && "Bijna daar! Nog even volhouden."}
-              {fiPct >= 50 && fiPct < 75 && "Goed op weg naar financiële vrijheid."}
-              {fiPct >= 25 && fiPct < 50 && "Een kwart van de weg afgelegd."}
-              {fiPct < 25 && "Begin van de reis naar financiële onafhankelijkheid."}
-            </p>
+            {fiPct < 100 && avgMonthlySavings > 0 && monthsToFI > 0 && (
+              <p className="text-xs text-slate-600 pt-1">
+                Nog ongeveer <span className="font-medium text-slate-900">{yearsToFI.toFixed(1)} jaar</span> ({Math.ceil(monthsToFI)} maanden).
+                <br />
+                <span className="text-slate-500">Geschat rond {fiDateString} bij gelijk spaartempo.</span>
+              </p>
+            )}
+            {fiPct >= 100 && (
+              <p className="text-xs text-emerald-600 font-medium pt-1">
+                Je bent financieel onafhankelijk! 🎉
+              </p>
+            )}
+            {fiPct < 100 && avgMonthlySavings <= 0 && (
+              <p className="text-xs text-slate-500 pt-1">
+                Begin met sparen om je FI-doel te bereiken.
+              </p>
+            )}
           </CardContent>
         </Card>
 
         {/* Tijd tot doelvermogen */}
         <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-800">Tijd tot doel</CardTitle>
-            <CardDescription className="text-xs text-slate-500">Doelvermogen: {euro(goalAmount)}.</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-medium text-slate-800">Tijd tot doel</CardTitle>
+                <CardDescription className="text-xs text-slate-500">Doelvermogen: {euro(goalAmount)}.</CardDescription>
+              </div>
+              <button
+                onClick={() => setIsEditingGoal(!isEditingGoal)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label={isEditingGoal ? "Annuleren" : "Bewerken"}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {isEditingGoal ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  )}
+                </svg>
+              </button>
+            </div>
           </CardHeader>
-          <CardContent className="pt-1 space-y-2 text-xs flex-1">
+          <CardContent className="pt-1 space-y-3 text-xs flex-1">
+            {isEditingGoal ? (
+              <div className="space-y-2">
+                <label className="text-xs text-slate-600">Doelvermogen</label>
+                <input
+                  type="number"
+                  value={goalAmount}
+                  onChange={(e) => setGoalAmount(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Doelvermogen"
+                  autoFocus
+                />
+                <button
+                  onClick={() => setIsEditingGoal(false)}
+                  className="w-full px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Opslaan
+                </button>
+              </div>
+            ) : (
+              <>
             {goalAlreadyReached ? (
               <>
-                <p className="text-slate-900 font-medium">Je hebt je doel al bereikt. 🎉</p>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-slate-500">Voortgang</span>
+                  <span className="font-medium text-emerald-600">100%</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full bg-emerald-500 transition-all" style={{ width: "100%" }} />
+                </div>
+                <p className="text-emerald-600 font-medium">Je hebt je doel al bereikt! 🎉</p>
                 <p className="text-slate-500">Huidig vermogen is hoger dan {euro(goalAmount)}.</p>
               </>
             ) : !goalReachable ? (
               <>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-slate-500">Voortgang</span>
+                  <span className="font-medium text-slate-900">{((currentNetWorth / goalAmount) * 100).toFixed(1)}%</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className="h-full bg-slate-400 transition-all"
+                    style={{ width: `${Math.min(100, (currentNetWorth / goalAmount) * 100)}%` }}
+                  />
+                </div>
                 <p className="text-slate-900 font-medium">
                   Huidig spaartempo is onvoldoende om het doel te bereiken.
                 </p>
@@ -998,6 +1091,20 @@ const Dashboard: React.FC = () => {
               </>
             ) : (
               <>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-slate-500">Voortgang</span>
+                  <span className="font-medium text-slate-900">{((currentNetWorth / goalAmount) * 100).toFixed(1)}%</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 transition-all"
+                    style={{ width: `${Math.min(100, (currentNetWorth / goalAmount) * 100)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-slate-500">
+                  <span>Huidig: {euro(currentNetWorth)}</span>
+                  <span>Doel: {euro(goalAmount)}</span>
+                </div>
                 <p className="text-slate-900 font-medium">
                   Nog ongeveer {monthsToGoal?.toFixed(1)} maanden ({yearsToGoal?.toFixed(1)} jaar).
                 </p>
@@ -1007,6 +1114,8 @@ const Dashboard: React.FC = () => {
                   </p>
                 )}
               </>
+            )}
+            </>
             )}
           </CardContent>
         </Card>
@@ -1037,9 +1146,15 @@ const Dashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
             <div className="flex-1 space-y-1">
-              {accountTypeData.map((item) => (
+              {accountTypeData.map((item, index) => (
                 <div key={item.name} className="flex items-center justify-between text-xs">
-                  <span className="text-slate-600">{item.name}</span>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-sm"
+                      style={{ backgroundColor: accountTypeColors[index % accountTypeColors.length] }}
+                    />
+                    <span className="text-slate-600">{item.name}</span>
+                  </div>
                   <span className="font-medium text-slate-900">{euro(item.value)}</span>
                 </div>
               ))}
@@ -1073,9 +1188,15 @@ const Dashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
             <div className="flex-1 space-y-1">
-              {bankDistributionData.map((item) => (
+              {bankDistributionData.map((item, index) => (
                 <div key={item.name} className="flex items-center justify-between text-xs">
-                  <span className="text-slate-600">{item.name}</span>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-sm"
+                      style={{ backgroundColor: bankDistributionColors[index % bankDistributionColors.length] }}
+                    />
+                    <span className="text-slate-600">{item.name}</span>
+                  </div>
                   <span className="font-medium text-slate-900">{euro(item.value)}</span>
                 </div>
               ))}
@@ -1381,6 +1502,149 @@ const Dashboard: React.FC = () => {
         </CardContent>
       </Card>
       </div>
+
+      {/* Financial Independence Info Modal */}
+      {showFIModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowFIModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">Financial Independence (FI)</h2>
+                  <p className="text-sm text-slate-500 mt-1">Wat betekent dit en hoe wordt het berekend?</p>
+                </div>
+                <button
+                  onClick={() => setShowFIModal(false)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                  aria-label="Sluiten"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4 text-sm text-slate-700">
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-2">🎯 Wat is Financial Independence?</h3>
+                  <p className="leading-relaxed">
+                    Financial Independence (FI) betekent dat je genoeg vermogen hebt opgebouwd om van de opbrengsten
+                    te kunnen leven zonder te hoeven werken. Je bent financieel onafhankelijk wanneer je passieve
+                    inkomsten (zoals dividenden, interest, huur) je levenskosten dekken.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-2">📊 De 4% Regel</h3>
+                  <p className="leading-relaxed mb-2">
+                    De 4% regel is een vuistregel uit de FIRE-beweging (Financial Independence, Retire Early).
+                    Deze regel stelt dat je veilig 4% van je vermogen per jaar kunt opnemen zonder dat je geld opraakt.
+                  </p>
+                  <p className="leading-relaxed">
+                    <strong>Formule:</strong> FI Doel = Jaarlijkse uitgaven × 25
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    (25 is het omgekeerde van 4%: 1 ÷ 0.04 = 25)
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-2">🧮 Jouw Berekening</h3>
+                  <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-600">Geschatte maandelijkse uitgaven:</span>
+                      <span className="font-medium text-slate-900">{euro(avgMonthlySpending)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-600">Jaarlijkse uitgaven:</span>
+                      <span className="font-medium text-slate-900">{euro(yearlySpending)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs border-t border-slate-200 pt-2">
+                      <span className="text-slate-600">FI Doel (× 25):</span>
+                      <span className="font-semibold text-indigo-600">{euro(fiTarget)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-600">Huidig vermogen:</span>
+                      <span className="font-medium text-slate-900">{euro(currentNetWorth)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs border-t border-slate-200 pt-2">
+                      <span className="text-slate-600">Voortgang:</span>
+                      <span className="font-semibold text-emerald-600">{fiPct.toFixed(1)}%</span>
+                    </div>
+                    {fiPct < 100 && avgMonthlySavings > 0 && monthsToFI > 0 && (
+                      <>
+                        <div className="flex justify-between text-xs border-t border-slate-200 pt-2">
+                          <span className="text-slate-600">Gemiddeld sparen per maand:</span>
+                          <span className="font-medium text-slate-900">{euro(avgMonthlySavings)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-600">Nog te gaan:</span>
+                          <span className="font-medium text-slate-900">{euro(remainingToFI)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs border-t border-indigo-100 bg-indigo-50 -mx-4 px-4 py-2 mt-2">
+                          <span className="text-indigo-700 font-medium">Geschatte tijd tot FI:</span>
+                          <span className="font-semibold text-indigo-900">{yearsToFI.toFixed(1)} jaar</span>
+                        </div>
+                        <div className="flex justify-between text-xs bg-indigo-50 -mx-4 px-4 pb-2">
+                          <span className="text-indigo-700">Verwachte datum:</span>
+                          <span className="font-medium text-indigo-900">{fiDateString}</span>
+                        </div>
+                      </>
+                    )}
+                    {fiPct >= 100 && (
+                      <div className="flex justify-center text-xs border-t border-emerald-200 bg-emerald-50 -mx-4 px-4 py-2 mt-2">
+                        <span className="text-emerald-700 font-semibold">🎉 Je bent financieel onafhankelijk!</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-2">💡 Voorbeeld</h3>
+                  <p className="leading-relaxed">
+                    Als je €2.000 per maand uitgeeft (€24.000 per jaar), dan heb je €600.000 nodig om financieel
+                    onafhankelijk te zijn (€24.000 × 25). Met dit bedrag kun je theoretisch elk jaar €24.000 opnemen
+                    (4% van €600.000) zonder dat je vermogen opraakt.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-slate-900 mb-2">⚠️ Belangrijke Kanttekeningen</h3>
+                  <ul className="list-disc list-inside space-y-1 text-slate-600">
+                    <li>De 4% regel is gebaseerd op historische data van de Amerikaanse aandelenmarkt</li>
+                    <li>Inflatie, belastingen en marktschommelingen kunnen impact hebben</li>
+                    <li>Dit is een vuistregel, geen garantie</li>
+                    <li>Overweeg een veiligheidsmarge (bijv. 3.5% in plaats van 4%)</li>
+                    <li>Raadpleeg een financieel adviseur voor persoonlijk advies</li>
+                  </ul>
+                </div>
+
+                <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-100">
+                  <p className="text-xs text-indigo-900 leading-relaxed">
+                    <strong>💡 Tip:</strong> Deze widget helpt je om je voortgang naar financiële onafhankelijkheid
+                    te volgen. Het is een motiverend doel, maar vergeet niet om ook te genieten van het leven onderweg!
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowFIModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+                >
+                  Begrepen
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
