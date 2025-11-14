@@ -896,11 +896,14 @@ const Dashboard: React.FC = () => {
                   <span className="font-medium text-slate-900">{euro(Math.max(0, targetProgress))}</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                  <div className="h-full bg-emerald-500" style={{ width: `${targetProgressPct.toFixed(0)}%` }} />
+                  <div className="h-full bg-emerald-500 transition-all" style={{ width: `${Math.min(100, targetProgressPct)}%` }} />
                 </div>
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>{targetProgressPct.toFixed(0)}% behaald</span>
-                  <span>Doel: {euro(yearlySavingsTarget)}</span>
+                <div className="flex items-center justify-between text-xs">
+                  <span className={targetProgressPct >= 100 ? "font-medium text-emerald-600" : "text-slate-500"}>
+                    {targetProgressPct.toFixed(0)}% behaald
+                    {targetProgressPct >= 100 && " 🎉"}
+                  </span>
+                  <span className="text-slate-500">Doel: {euro(yearlySavingsTarget)}</span>
                 </div>
               </>
             )}
@@ -933,13 +936,13 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between text-xs">
               <span className={cn(
                 "font-medium",
-                emergencyFundStatus === "excellent" ? "text-emerald-700" :
-                emergencyFundStatus === "good" ? "text-blue-700" :
-                emergencyFundStatus === "fair" ? "text-amber-700" :
-                "text-rose-700"
+                emergencyFundStatus === "excellent" ? "text-emerald-600" :
+                emergencyFundStatus === "good" ? "text-blue-600" :
+                emergencyFundStatus === "fair" ? "text-amber-600" :
+                "text-rose-600"
               )}>
-                {emergencyFundStatus === "excellent" && "Uitstekend"}
-                {emergencyFundStatus === "good" && "Goed"}
+                {emergencyFundStatus === "excellent" && "Uitstekend 🎉"}
+                {emergencyFundStatus === "good" && "Goed ✓"}
                 {emergencyFundStatus === "fair" && "Voldoende"}
                 {emergencyFundStatus === "insufficient" && "Onvoldoende"}
               </span>
