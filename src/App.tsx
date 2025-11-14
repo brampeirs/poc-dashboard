@@ -331,12 +331,10 @@ const Dashboard: React.FC = () => {
       {/* Top row: total net worth */}
       <div className="grid gap-4 lg:grid-cols-1">
         {/* Totaal vermogen */}
-        <Card className="shadow-sm border-slate-100">
-          <CardHeader className="flex flex-row items-center justify-between gap-4 pb-3">
-            <div>
-              <CardTitle className="text-sm font-medium text-slate-800">Totaal Vermogen</CardTitle>
-              <CardDescription className="text-xs mt-1 text-slate-500">Per november 2025</CardDescription>
-            </div>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-slate-800">Totaal Vermogen</CardTitle>
+            <CardDescription className="mt-1">Per november 2025</CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-2">
@@ -348,10 +346,10 @@ const Dashboard: React.FC = () => {
 
       {/* Netto verandering vorige maand */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Verandering t.o.v. vorige maand</CardTitle>
-            <CardDescription className="text-xs text-slate-500">Netto stijging of daling van je vermogen.</CardDescription>
+            <CardDescription className="mt-1 text-xs text-slate-500 leading-relaxed">Netto stijging of daling van je vermogen.</CardDescription>
           </CardHeader>
           <CardContent className="pt-1 space-y-2">
             <div
@@ -363,7 +361,7 @@ const Dashboard: React.FC = () => {
               <span className="mr-1">{delta >= 0 ? "↑" : "↓"}</span>
               {euro(Math.abs(delta))}
             </div>
-            <p className="text-xs text-slate-500">Op basis van vorige maand.</p>
+            <p className="text-xs text-slate-500 leading-relaxed">Op basis van vorige maand.</p>
           </CardContent>
         </Card>
       </div>
@@ -371,27 +369,28 @@ const Dashboard: React.FC = () => {
       {/* Savings & spending row */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {/* Gemiddeld spaarsaldo */}
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Gemiddeld spaarsaldo</CardTitle>
-            <CardDescription className="text-xs text-slate-500">Op basis van {savingsLabel}.</CardDescription>
+            <CardDescription className="mt-1 text-xs text-slate-500 leading-relaxed">Op basis van {savingsLabel}.</CardDescription>
           </CardHeader>
           <CardContent className="pt-1">
             <div className="flex flex-col justify-between gap-4">
               <div>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <div className="text-xl font-semibold text-slate-900">{euro(avgMonthlySavings)} / maand</div>
-                  <div className="text-xs text-slate-500">≈ {euro(avgYearlySavings)} per jaar</div>
+                  <div className="text-xs text-slate-500 leading-relaxed">≈ {euro(avgYearlySavings)} per jaar</div>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">Inclusief alle rekeningen.</p>
+                <p className="mt-2 text-xs text-slate-500 leading-relaxed">Inclusief alle rekeningen.</p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mt-2">
                 <Button
                   size="xs"
                   variant="outline"
                   className={cn(
                     "rounded-full h-7 px-3 text-[11px]",
-                    savingsRange === "all" && "bg-slate-900 text-slate-50 border-slate-900"
+                    savingsRange === "all" &&
+                      "bg-slate-900 !text-slate-50 border-slate-900 hover:bg-slate-900 hover:!text-slate-50"
                   )}
                   onClick={() => setSavingsRange("all")}
                 >
@@ -402,7 +401,8 @@ const Dashboard: React.FC = () => {
                   variant="ghost"
                   className={cn(
                     "rounded-full h-7 px-3 text-[11px] text-slate-500",
-                    savingsRange === "12m" && "bg-slate-900 text-slate-50 hover:text-slate-50"
+                    savingsRange === "12m" &&
+                      "bg-slate-900 !text-slate-50 hover:bg-slate-900 hover:!text-slate-50"
                   )}
                   onClick={() => setSavingsRange("12m")}
                 >
@@ -413,7 +413,8 @@ const Dashboard: React.FC = () => {
                   variant="ghost"
                   className={cn(
                     "rounded-full h-7 px-3 text-[11px] text-slate-500",
-                    savingsRange === "6m" && "bg-slate-900 text-slate-50 hover:text-slate-50"
+                    savingsRange === "6m" &&
+                      "bg-slate-900 !text-slate-50 hover:bg-slate-900 hover:!text-slate-50"
                   )}
                   onClick={() => setSavingsRange("6m")}
                 >
@@ -425,14 +426,14 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Gemiddelde uitgaven per maand */}
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Gemiddelde uitgaven</CardTitle>
-            <CardDescription className="text-xs text-slate-500">Op basis van inkomen minus spaargedrag.</CardDescription>
+            <CardDescription className="mt-1 text-xs text-slate-500 leading-relaxed">Op basis van inkomen minus spaargedrag.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1 space-y-1">
+          <CardContent className="pt-1 space-y-2">
             <div className="text-xl font-semibold text-slate-900">{euro(avgMonthlySpending)} / maand</div>
-            <p className="text-xs text-slate-500">Inclusief vaste + variabele uitgaven.</p>
+            <p className="text-xs text-slate-500 leading-relaxed">Inclusief vaste + variabele uitgaven.</p>
           </CardContent>
         </Card>
       </div>
@@ -441,7 +442,7 @@ const Dashboard: React.FC = () => {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {/* Runway */}
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Runway</CardTitle>
             <CardDescription className="text-xs text-slate-500">Hoelang je huidige buffer je kan dragen.</CardDescription>
@@ -453,7 +454,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Geschat inkomen */}
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Geschat inkomen</CardTitle>
             <CardDescription className="text-xs text-slate-500">Je totale geschatte maandelijkse inkomsten.</CardDescription>
@@ -465,7 +466,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Maandelijkse cashflow */}
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Maandelijkse cashflow</CardTitle>
             <CardDescription className="text-xs text-slate-500">Samenvatting van inkomen, sparen en totale kosten.</CardDescription>
@@ -541,7 +542,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Netto verandering YTD */}
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Netto verandering YTD</CardTitle>
             <CardDescription className="text-xs text-slate-500">Sinds 1 januari {lastPointYear}.</CardDescription>
@@ -561,7 +562,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Savings streak */}
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Savings streak</CardTitle>
             <CardDescription className="text-xs text-slate-500">Aantal opeenvolgende maanden waarin je vermogen steeg.</CardDescription>
@@ -575,7 +576,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Jaarlijks spaardoel */}
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Jaarlijks spaardoel</CardTitle>
             <CardDescription className="text-xs text-slate-500">Voorbeeld: {euro(yearlySavingsTarget)} in {lastPointYear}.</CardDescription>
@@ -596,7 +597,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Projectie 12 maanden */}
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Projectie 12 maanden</CardTitle>
             <CardDescription className="text-xs text-slate-500">Op basis van je huidige gemiddelde spaargedrag ({savingsLabel}).</CardDescription>
@@ -608,7 +609,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Tijd tot doelvermogen */}
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Tijd tot doel</CardTitle>
             <CardDescription className="text-xs text-slate-500">Doelvermogen: {euro(goalAmount)}.</CardDescription>
@@ -644,7 +645,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Verdeling per type */}
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Verdeling per type</CardTitle>
             <CardDescription className="text-xs text-slate-500">Hoe je vermogen nu verdeeld is.</CardDescription>
@@ -680,7 +681,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Verdeling per bank */}
-        <Card className="shadow-sm border-slate-100">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Verdeling per bank</CardTitle>
             <CardDescription className="text-xs text-slate-500">Hoe je vermogen over banken gespreid is.</CardDescription>
@@ -717,18 +718,22 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Vaste kosten detail + UX flow */}
-      <Card className="shadow-sm border-slate-100">
-        <CardHeader className="flex flex-row items-center justify-between gap-4 pb-3">
-          <div>
-            <CardTitle className="text-base font-medium text-slate-800">Geschatte vaste kosten</CardTitle>
-            <CardDescription className="text-xs text-slate-500 mt-1">
-              Geef hier een inschatting van je terugkerende vaste kosten (bv. lening, energie, water, Netflix, ...). Dit is
-              bedoeld als extra inzicht en hoeft niet tot op de euro juist te zijn.
-            </CardDescription>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-base font-medium text-slate-800">
+                Geschatte vaste kosten
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-500 mt-1">
+                Geef hier een inschatting van je terugkerende vaste kosten (bv. lening, energie, water, Netflix, ...). Dit is bedoeld
+                als extra inzicht en hoeft niet tot op de euro juist te zijn.
+              </CardDescription>
+            </div>
+            <Button size="sm" variant="outline">
+              Nieuwe vaste kost
+            </Button>
           </div>
-          <Button size="sm" variant="outline">
-            Nieuwe vaste kost
-          </Button>
         </CardHeader>
         <CardContent className="pt-0 text-xs">
           <div className="flex items-baseline justify-between mb-3">
@@ -769,32 +774,34 @@ const Dashboard: React.FC = () => {
       </Card>
 
       {/* Main chart */}
-      <Card className="shadow-sm border-slate-100">
-        <CardHeader className="flex flex-row items-center justify-between gap-4 pb-4">
-          <div>
-            <CardTitle className="text-base font-medium text-slate-800">Vermogen</CardTitle>
-            <CardDescription className="text-xs text-slate-500 mt-1">
-              Evolutie van je totale vermogen doorheen de tijd.
-            </CardDescription>
-          </div>
-          <div className="flex gap-2 rounded-full bg-slate-100 p-1 text-xs">
-            {Object.entries(rangeLabels).map(([key, label]) => {
-              const value = key as Range;
-              const active = range === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setRange(value)}
-                  className={cn(
-                    "px-3 py-1 rounded-full font-medium transition text-[11px]",
-                    active ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-900"
-                  )}
-                >
-                  {label}
-                </button>
-              );
-            })}
+      <Card>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-base font-medium text-slate-800">Vermogen</CardTitle>
+              <CardDescription className="text-xs text-slate-500 mt-1">
+                Evolutie van je totale vermogen doorheen de tijd.
+              </CardDescription>
+            </div>
+            <div className="flex gap-2 rounded-full bg-slate-100 p-1 text-xs">
+              {Object.entries(rangeLabels).map(([key, label]) => {
+                const value = key as Range;
+                const active = range === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setRange(value)}
+                    className={cn(
+                      "px-3 py-1 rounded-full font-medium transition text-[11px]",
+                      active ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-900"
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
