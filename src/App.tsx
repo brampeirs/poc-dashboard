@@ -273,6 +273,8 @@ const Dashboard: React.FC = () => {
     kind: "vast",
   });
   const [showFIModal, setShowFIModal] = useState(false);
+  const [showTypePercentages, setShowTypePercentages] = useState(false);
+  const [showBankPercentages, setShowBankPercentages] = useState(false);
 
   const filteredData = useMemo(() => {
     if (range === "all") return netWorthData;
@@ -1123,8 +1125,18 @@ const Dashboard: React.FC = () => {
         {/* Verdeling per type */}
         <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-800">Verdeling per type</CardTitle>
-            <CardDescription className="text-xs text-slate-500">Hoe je vermogen nu verdeeld is.</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-medium text-slate-800">Verdeling per type</CardTitle>
+                <CardDescription className="text-xs text-slate-500">Hoe je vermogen nu verdeeld is.</CardDescription>
+              </div>
+              <button
+                onClick={() => setShowTypePercentages(!showTypePercentages)}
+                className="text-xs px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+              >
+                {showTypePercentages ? "€" : "%"}
+              </button>
+            </div>
           </CardHeader>
           <CardContent className="pt-1 flex items-center gap-4 flex-1">
             <div className="w-24 h-24">
@@ -1146,18 +1158,23 @@ const Dashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
             <div className="flex-1 space-y-1">
-              {accountTypeData.map((item, index) => (
-                <div key={item.name} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-sm"
-                      style={{ backgroundColor: accountTypeColors[index % accountTypeColors.length] }}
-                    />
-                    <span className="text-slate-600">{item.name}</span>
+              {accountTypeData.map((item, index) => {
+                const percentage = currentNetWorth > 0 ? (item.value / currentNetWorth) * 100 : 0;
+                return (
+                  <div key={item.name} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-sm"
+                        style={{ backgroundColor: accountTypeColors[index % accountTypeColors.length] }}
+                      />
+                      <span className="text-slate-600">{item.name}</span>
+                    </div>
+                    <span className="font-medium text-slate-900">
+                      {showTypePercentages ? `${percentage.toFixed(1)}%` : euro(item.value)}
+                    </span>
                   </div>
-                  <span className="font-medium text-slate-900">{euro(item.value)}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -1165,8 +1182,18 @@ const Dashboard: React.FC = () => {
         {/* Verdeling per bank */}
         <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-800">Verdeling per bank</CardTitle>
-            <CardDescription className="text-xs text-slate-500">Hoe je vermogen over banken gespreid is.</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-medium text-slate-800">Verdeling per bank</CardTitle>
+                <CardDescription className="text-xs text-slate-500">Hoe je vermogen over banken gespreid is.</CardDescription>
+              </div>
+              <button
+                onClick={() => setShowBankPercentages(!showBankPercentages)}
+                className="text-xs px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+              >
+                {showBankPercentages ? "€" : "%"}
+              </button>
+            </div>
           </CardHeader>
           <CardContent className="pt-1 flex items-center gap-4 flex-1">
             <div className="w-24 h-24">
@@ -1188,18 +1215,23 @@ const Dashboard: React.FC = () => {
               </ResponsiveContainer>
             </div>
             <div className="flex-1 space-y-1">
-              {bankDistributionData.map((item, index) => (
-                <div key={item.name} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-sm"
-                      style={{ backgroundColor: bankDistributionColors[index % bankDistributionColors.length] }}
-                    />
-                    <span className="text-slate-600">{item.name}</span>
+              {bankDistributionData.map((item, index) => {
+                const percentage = currentNetWorth > 0 ? (item.value / currentNetWorth) * 100 : 0;
+                return (
+                  <div key={item.name} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-sm"
+                        style={{ backgroundColor: bankDistributionColors[index % bankDistributionColors.length] }}
+                      />
+                      <span className="text-slate-600">{item.name}</span>
+                    </div>
+                    <span className="font-medium text-slate-900">
+                      {showBankPercentages ? `${percentage.toFixed(1)}%` : euro(item.value)}
+                    </span>
                   </div>
-                  <span className="font-medium text-slate-900">{euro(item.value)}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
