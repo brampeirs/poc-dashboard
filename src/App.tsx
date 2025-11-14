@@ -123,6 +123,127 @@ const monthlyFromFixedCost = (cost: FixedCost): number => {
   }
 };
 
+// Cashflow Card Component with expand/collapse
+const CashflowCard: React.FC<{
+  estimatedMonthlyIncome: number;
+  avgMonthlySavings: number;
+  avgMonthlySpending: number;
+  totalFixedMonthlyCosts: number;
+  otherCosts: number;
+  fixedPctOfCosts: number;
+  otherPctOfCosts: number;
+  savingsPctOfIncome: number;
+  costsPctOfIncome: number;
+}> = ({
+  estimatedMonthlyIncome,
+  avgMonthlySavings,
+  avgMonthlySpending,
+  totalFixedMonthlyCosts,
+  otherCosts,
+  fixedPctOfCosts,
+  otherPctOfCosts,
+  savingsPctOfIncome,
+  costsPctOfIncome,
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-sm font-medium text-slate-800">Maandelijkse cashflow</CardTitle>
+            <CardDescription className="text-xs text-slate-500">Samenvatting van inkomen, sparen en totale kosten.</CardDescription>
+          </div>
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-slate-400 hover:text-slate-600 transition-colors"
+            aria-label={isExpanded ? "Inklappen" : "Uitklappen"}
+          >
+            <svg
+              className={cn("w-5 h-5 transition-transform", isExpanded && "rotate-180")}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-1 space-y-2 text-xs flex-1">
+        {/* Always visible: main summary */}
+        <div className="flex items-center justify-between">
+          <span className="text-slate-500">Inkomen</span>
+          <span className="font-medium text-slate-900">{euro(estimatedMonthlyIncome)}</span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-slate-500">Sparen</span>
+          <span className="font-medium text-slate-900">{euro(avgMonthlySavings)}</span>
+        </div>
+
+        <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+          <span className="text-slate-500">Totale kosten</span>
+          <span className="font-medium text-slate-900">{euro(avgMonthlySpending)}</span>
+        </div>
+
+        {/* Expandable details */}
+        {isExpanded && (
+          <>
+            <div className="pl-2 space-y-0.5 text-[11px] pt-1">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Vaste</span>
+                <span className="text-slate-700">
+                  {euro(totalFixedMonthlyCosts)} ({fixedPctOfCosts.toFixed(0)}%)
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Overige</span>
+                <span className="text-slate-700">
+                  {euro(Math.max(0, otherCosts))} ({otherPctOfCosts.toFixed(0)}%)
+                </span>
+              </div>
+            </div>
+
+            {/* Balk: sparen vs kosten als % van inkomen */}
+            <div className="space-y-0.5 pt-1">
+              <div className="flex items-center justify-between text-[10px] text-slate-500">
+                <span>Sparen vs kosten</span>
+                <span>
+                  {savingsPctOfIncome.toFixed(0)}% / {costsPctOfIncome.toFixed(0)}%
+                </span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div
+                  className="h-full bg-emerald-500"
+                  style={{ width: `${savingsPctOfIncome.toFixed(0)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Balk: vaste vs overige kosten binnen totale kosten */}
+            <div className="space-y-0.5">
+              <div className="flex items-center justify-between text-[10px] text-slate-500">
+                <span>Vaste vs overige</span>
+                <span>
+                  {fixedPctOfCosts.toFixed(0)}% / {otherPctOfCosts.toFixed(0)}%
+                </span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div
+                  className="h-full bg-slate-400"
+                  style={{ width: `${fixedPctOfCosts.toFixed(0)}%` }}
+                />
+              </div>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 const Dashboard: React.FC = () => {
   const [range, setRange] = useState<Range>("all");
   const [savingsRange, setSavingsRange] = useState<SavingsRange>("12m");
@@ -319,17 +440,17 @@ const Dashboard: React.FC = () => {
   const otherPctOfCosts = Math.max(0, Math.min(100, 100 - fixedPctOfCosts));
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 px-6 py-8 md:px-10 lg:px-16 space-y-6">
+    <div className="w-full min-h-screen bg-slate-50 px-6 py-8 md:px-10 lg:px-16">
       {/* Page header */}
-      <header className="space-y-1">
+      <header className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
           Dashboard
         </h1>
-        <p className="text-sm text-slate-500">Welkom bij je financiële overzicht.</p>
+        <p className="text-xs text-slate-500 mt-0.5">Welkom bij je financiële overzicht.</p>
       </header>
 
-      {/* Top row: total net worth */}
-      <div className="grid gap-4 lg:grid-cols-1">
+      {/* Top row: total net worth + delta */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mb-6">
         {/* Totaal vermogen */}
         <Card>
           <CardHeader className="pb-3">
@@ -342,10 +463,8 @@ const Dashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Netto verandering vorige maand */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {/* Verandering t.o.v. vorige maand */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Verandering t.o.v. vorige maand</CardTitle>
@@ -367,14 +486,14 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Savings & spending row */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mb-6">
         {/* Gemiddeld spaarsaldo */}
-        <Card>
+        <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Gemiddeld spaarsaldo</CardTitle>
             <CardDescription className="mt-1 text-xs text-slate-500 leading-relaxed">Op basis van {savingsLabel}.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1">
+          <CardContent className="pt-1 flex-1">
             <div className="flex flex-col justify-between gap-4">
               <div>
                 <div className="space-y-2">
@@ -426,12 +545,12 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Gemiddelde uitgaven per maand */}
-        <Card>
+        <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Gemiddelde uitgaven</CardTitle>
             <CardDescription className="mt-1 text-xs text-slate-500 leading-relaxed">Op basis van inkomen minus spaargedrag.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1 space-y-2">
+          <CardContent className="pt-1 space-y-2 flex-1">
             <div className="text-xl font-semibold text-slate-900">{euro(avgMonthlySpending)} / maand</div>
             <p className="text-xs text-slate-500 leading-relaxed">Inclusief vaste + variabele uitgaven.</p>
           </CardContent>
@@ -439,115 +558,51 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Extra metrics row */}
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 mb-8">
         {/* Runway */}
-        <Card>
+        <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Runway</CardTitle>
             <CardDescription className="text-xs text-slate-500">Hoelang je huidige buffer je kan dragen.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1 space-y-2">
+          <CardContent className="pt-1 space-y-2 flex-1">
             <div className="text-xl font-semibold text-slate-900">{runwayMonths.toFixed(1)} maanden</div>
             <p className="text-xs text-slate-500">Op basis van {euro(avgMonthlyExpenses)} uitgaven per maand.</p>
           </CardContent>
         </Card>
 
         {/* Geschat inkomen */}
-        <Card>
+        <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Geschat inkomen</CardTitle>
             <CardDescription className="text-xs text-slate-500">Je totale geschatte maandelijkse inkomsten.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1 space-y-2">
+          <CardContent className="pt-1 space-y-2 flex-1">
             <div className="text-xl font-semibold text-slate-900">{euro(estimatedMonthlyIncome)} / maand</div>
             <p className="text-xs text-slate-500">Optioneel gecombineerd inkomen van Bram &amp; Liesbeth.</p>
           </CardContent>
         </Card>
 
         {/* Maandelijkse cashflow */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-800">Maandelijkse cashflow</CardTitle>
-            <CardDescription className="text-xs text-slate-500">Samenvatting van inkomen, sparen en totale kosten.</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-1 space-y-3 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">Inkomen</span>
-              <span className="font-medium text-slate-900">{euro(estimatedMonthlyIncome)}</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">Sparen</span>
-              <span className="font-medium text-slate-900">{euro(avgMonthlySavings)}</span>
-            </div>
-
-            <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-              <span className="text-slate-500">Totale kosten</span>
-              <span className="font-medium text-slate-900">{euro(avgMonthlySpending)}</span>
-            </div>
-
-            <div className="pl-3 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Vaste kosten</span>
-                <span className="font-medium text-slate-900">
-                  {euro(totalFixedMonthlyCosts)} ({fixedPctOfCosts.toFixed(0)}%)
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Overige kosten</span>
-                <span className="font-medium text-slate-900">
-                  {euro(Math.max(0, otherCosts))} ({otherPctOfCosts.toFixed(0)}%)
-                </span>
-              </div>
-            </div>
-
-            {/* Balk: sparen vs kosten als % van inkomen */}
-            <div className="space-y-1 pt-2">
-              <div className="flex items-center justify-between text-[11px] text-slate-500">
-                <span>Sparen vs kosten (t.o.v. inkomen)</span>
-                <span>
-                  {savingsPctOfIncome.toFixed(0)}% sparen / {costsPctOfIncome.toFixed(0)}% kosten
-                </span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500"
-                  style={{ width: `${savingsPctOfIncome.toFixed(0)}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Balk: vaste vs overige kosten binnen totale kosten */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-[11px] text-slate-500">
-                <span>Vaste vs overige kosten (binnen kosten)</span>
-                <span>
-                  {fixedPctOfCosts.toFixed(0)}% vast / {otherPctOfCosts.toFixed(0)}% overige
-                </span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                <div
-                  className="h-full bg-slate-400"
-                  style={{ width: `${fixedPctOfCosts.toFixed(0)}%` }}
-                />
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-500 pt-2">
-              Van je inkomen van {euro(estimatedMonthlyIncome)} per maand spaar je gemiddeld {euro(avgMonthlySavings)}.
-              Je totale kosten bedragen {euro(avgMonthlySpending)}, waarvan {euro(totalFixedMonthlyCosts)} vaste kosten zijn en {euro(Math.max(0, otherCosts))} overige kosten.
-            </p>
-          </CardContent>
-        </Card>
+        <CashflowCard
+          estimatedMonthlyIncome={estimatedMonthlyIncome}
+          avgMonthlySavings={avgMonthlySavings}
+          avgMonthlySpending={avgMonthlySpending}
+          totalFixedMonthlyCosts={totalFixedMonthlyCosts}
+          otherCosts={otherCosts}
+          fixedPctOfCosts={fixedPctOfCosts}
+          otherPctOfCosts={otherPctOfCosts}
+          savingsPctOfIncome={savingsPctOfIncome}
+          costsPctOfIncome={costsPctOfIncome}
+        />
 
         {/* Netto verandering YTD */}
-        <Card>
+        <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Netto verandering YTD</CardTitle>
             <CardDescription className="text-xs text-slate-500">Sinds 1 januari {lastPointYear}.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1 space-y-2">
+          <CardContent className="pt-1 space-y-2 flex-1">
             <div
               className={cn(
                 "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
@@ -562,12 +617,12 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Savings streak */}
-        <Card>
+        <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Savings streak</CardTitle>
             <CardDescription className="text-xs text-slate-500">Aantal opeenvolgende maanden waarin je vermogen steeg.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1 space-y-2">
+          <CardContent className="pt-1 space-y-2 flex-1">
             <div className="text-xl font-semibold text-slate-900">
               {savingsStreak} maand{savingsStreak === 1 ? "" : "en"} op rij
             </div>
@@ -576,12 +631,12 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Jaarlijks spaardoel */}
-        <Card>
+        <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Jaarlijks spaardoel</CardTitle>
             <CardDescription className="text-xs text-slate-500">Voorbeeld: {euro(yearlySavingsTarget)} in {lastPointYear}.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1 space-y-3">
+          <CardContent className="pt-1 space-y-3 flex-1">
             <div className="flex items-baseline justify-between text-xs">
               <span className="text-slate-500">Totaal gespaard YTD</span>
               <span className="font-medium text-slate-900">{euro(Math.max(0, targetProgress))}</span>
@@ -597,24 +652,24 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Projectie 12 maanden */}
-        <Card>
+        <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Projectie 12 maanden</CardTitle>
             <CardDescription className="text-xs text-slate-500">Op basis van je huidige gemiddelde spaargedrag ({savingsLabel}).</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1 space-y-2">
+          <CardContent className="pt-1 space-y-2 flex-1">
             <div className="text-xl font-semibold text-slate-900">{euro(projectedBalance12m)}</div>
             <p className="text-xs text-slate-500">≈ {euro(projectedGrowth12m)} groei t.o.v. nu in één jaar.</p>
           </CardContent>
         </Card>
 
         {/* Tijd tot doelvermogen */}
-        <Card>
+        <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Tijd tot doel</CardTitle>
             <CardDescription className="text-xs text-slate-500">Doelvermogen: {euro(goalAmount)}.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1 space-y-2 text-xs">
+          <CardContent className="pt-1 space-y-2 text-xs flex-1">
             {goalAlreadyReached ? (
               <>
                 <p className="text-slate-900 font-medium">Je hebt je doel al bereikt. 🎉</p>
@@ -645,12 +700,12 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Verdeling per type */}
-        <Card>
+        <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Verdeling per type</CardTitle>
             <CardDescription className="text-xs text-slate-500">Hoe je vermogen nu verdeeld is.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1 flex items-center gap-4">
+          <CardContent className="pt-1 flex items-center gap-4 flex-1">
             <div className="w-24 h-24">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -681,12 +736,12 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* Verdeling per bank */}
-        <Card>
+        <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-slate-800">Verdeling per bank</CardTitle>
             <CardDescription className="text-xs text-slate-500">Hoe je vermogen over banken gespreid is.</CardDescription>
           </CardHeader>
-          <CardContent className="pt-1 flex items-center gap-4">
+          <CardContent className="pt-1 flex items-center gap-4 flex-1">
             <div className="w-24 h-24">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -718,8 +773,10 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Vaste kosten detail + UX flow */}
+      <div className="mt-8">
       <Card>
         <CardHeader className="pb-3">
+          {/* TODO: make button trigger actual add-cost flow later */}
           <div className="flex items-center justify-between gap-4">
             <div>
               <CardTitle className="text-base font-medium text-slate-800">
@@ -740,31 +797,46 @@ const Dashboard: React.FC = () => {
             <span className="text-slate-500">Geschat totaal vaste kosten / maand</span>
             <span className="text-sm font-semibold text-slate-900">{euro(totalFixedMonthlyCosts)}</span>
           </div>
-          <div className="border border-slate-100 rounded-xl overflow-hidden">
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] bg-slate-50 px-3 py-2 font-medium text-[11px] text-slate-500 uppercase tracking-wide">
-              <span>Kost</span>
-              <span className="text-right">Bedrag</span>
-              <span className="text-right">Frequentie</span>
-              <span className="text-right">Maandelijks</span>
+
+          {fixedCosts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-8 text-center">
+              <p className="text-sm font-medium text-slate-900 mb-1">Nog geen vaste kosten toegevoegd.</p>
+              <p className="text-xs text-slate-500 mb-4 max-w-md">
+                Voeg je belangrijkste terugkerende kosten toe om een realistischer beeld te krijgen van je maandelijkse ruimte.
+              </p>
+              <Button size="sm" variant="outline">
+                Nieuwe vaste kost
+              </Button>
             </div>
-            {fixedCosts.map((cost, idx) => (
-              <div
-                key={cost.name + idx}
-                className="grid grid-cols-[2fr_1fr_1fr_1fr] px-3 py-2 border-t border-slate-100 items-center"
-              >
-                <div className="flex flex-col">
-                  <span className="text-slate-900 font-medium">{cost.name}</span>
-                </div>
-                <span className="text-right text-slate-900">{euro(cost.amount)}</span>
-                <span className="text-right text-slate-500">
-                  {cost.frequency === "monthly" && "maandelijks"}
-                  {cost.frequency === "quarterly" && "per kwartaal"}
-                  {cost.frequency === "yearly" && "per jaar"}
-                </span>
-                <span className="text-right text-slate-900">{euro(monthlyFromFixedCost(cost))}</span>
+          ) : (
+            <div className="border border-slate-100 rounded-xl overflow-hidden overflow-x-auto">
+              <div className="grid min-w-[520px] grid-cols-[2fr_1fr_1fr_1fr] bg-slate-50 px-3 py-2 font-medium text-[11px] text-slate-500 uppercase tracking-wide">
+                <span>Kost</span>
+                <span className="text-right">Bedrag</span>
+                <span className="text-right">Frequentie</span>
+                <span className="text-right">Maandelijks</span>
               </div>
-            ))}
-          </div>
+              <div className="max-h-[260px] overflow-auto">
+                {fixedCosts.map((cost, idx) => (
+                  <div
+                    key={cost.name + idx}
+                    className="grid min-w-[520px] grid-cols-[2fr_1fr_1fr_1fr] px-3 py-2 border-t border-slate-100 items-center"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-slate-900 font-medium">{cost.name}</span>
+                    </div>
+                    <span className="text-right text-slate-900">{euro(cost.amount)}</span>
+                    <span className="text-right text-slate-500">
+                      {cost.frequency === "monthly" && "maandelijks"}
+                      {cost.frequency === "quarterly" && "per kwartaal"}
+                      {cost.frequency === "yearly" && "per jaar"}
+                    </span>
+                    <span className="text-right text-slate-900">{euro(monthlyFromFixedCost(cost))}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <p className="text-[11px] text-slate-500 mt-3">
             UX-flow idee: je geeft hier je geschatte vaste kosten in (lening, energie, water, Netflix, ...). Facturen mogen
             variabel zijn: gebruik een gemiddeld bedrag. Deze info dient als extra inzicht naast je vermogen en hoeft geen exacte
@@ -772,8 +844,10 @@ const Dashboard: React.FC = () => {
           </p>
         </CardContent>
       </Card>
+      </div>
 
       {/* Main chart */}
+      <div className="mt-8">
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-4">
@@ -783,7 +857,7 @@ const Dashboard: React.FC = () => {
                 Evolutie van je totale vermogen doorheen de tijd.
               </CardDescription>
             </div>
-            <div className="flex gap-2 rounded-full bg-slate-100 p-1 text-xs">
+            <div className="flex flex-wrap gap-2 rounded-full bg-slate-100 p-1 text-xs">
               {Object.entries(rangeLabels).map(([key, label]) => {
                 const value = key as Range;
                 const active = range === value;
@@ -859,6 +933,7 @@ const Dashboard: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };
