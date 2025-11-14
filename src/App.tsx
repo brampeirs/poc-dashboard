@@ -275,6 +275,8 @@ const Dashboard: React.FC = () => {
   const [showFIModal, setShowFIModal] = useState(false);
   const [showTypePercentages, setShowTypePercentages] = useState(false);
   const [showBankPercentages, setShowBankPercentages] = useState(false);
+  const [emergencyFundMonths, setEmergencyFundMonths] = useState(6);
+  const [isEditingEmergencyFund, setIsEditingEmergencyFund] = useState(false);
 
   const filteredData = useMemo(() => {
     if (range === "all") return netWorthData;
@@ -515,8 +517,7 @@ const Dashboard: React.FC = () => {
 
   const runwayMonths = avgMonthlySpending > 0 ? liquidNetWorth / avgMonthlySpending : 0;
 
-  // Emergency Fund Status (6 maanden = veilig)
-  const emergencyFundMonths = 6;
+  // Emergency Fund Status
   const emergencyFundTarget = avgMonthlySpending * emergencyFundMonths;
   const emergencyFundPct = emergencyFundTarget > 0 ? (liquidNetWorth / emergencyFundTarget) * 100 : 0;
   const emergencyFundStatus =
@@ -910,44 +911,85 @@ const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Emergency Fund Status */}
+        {/* Emergency Fund Status - Editable */}
         <Card className="h-full flex flex-col">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-800">Emergency Fund</CardTitle>
-            <CardDescription className="text-xs text-slate-500">Voldoende buffer voor {emergencyFundMonths} maanden uitgaven.</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-medium text-slate-800">Emergency Fund</CardTitle>
+                <CardDescription className="text-xs text-slate-500">Voldoende buffer voor {emergencyFundMonths} maanden uitgaven.</CardDescription>
+              </div>
+              <button
+                onClick={() => setIsEditingEmergencyFund(!isEditingEmergencyFund)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label={isEditingEmergencyFund ? "Annuleren" : "Bewerken"}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {isEditingEmergencyFund ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  )}
+                </svg>
+              </button>
+            </div>
           </CardHeader>
           <CardContent className="pt-1 space-y-3 flex-1">
-            <div className="flex items-baseline justify-between text-xs">
-              <span className="text-slate-500">Liquide middelen</span>
-              <span className="font-medium text-slate-900">{euro(liquidNetWorth)}</span>
-            </div>
-            <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div
-                className={cn(
-                  "h-full transition-all",
-                  emergencyFundStatus === "excellent" ? "bg-emerald-500" :
-                  emergencyFundStatus === "good" ? "bg-blue-500" :
-                  emergencyFundStatus === "fair" ? "bg-amber-500" :
-                  "bg-rose-500"
-                )}
-                style={{ width: `${Math.min(100, emergencyFundPct)}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className={cn(
-                "font-medium",
-                emergencyFundStatus === "excellent" ? "text-emerald-600" :
-                emergencyFundStatus === "good" ? "text-blue-600" :
-                emergencyFundStatus === "fair" ? "text-amber-600" :
-                "text-rose-600"
-              )}>
-                {emergencyFundStatus === "excellent" && "Uitstekend 🎉"}
-                {emergencyFundStatus === "good" && "Goed ✓"}
-                {emergencyFundStatus === "fair" && "Voldoende"}
-                {emergencyFundStatus === "insufficient" && "Onvoldoende"}
-              </span>
-              <span className="text-slate-500">Doel: {euro(emergencyFundTarget)}</span>
-            </div>
+            {isEditingEmergencyFund ? (
+              <div className="space-y-2">
+                <label className="text-xs text-slate-600">Aantal maanden buffer</label>
+                <input
+                  type="number"
+                  value={emergencyFundMonths}
+                  onChange={(e) => setEmergencyFundMonths(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  placeholder="Aantal maanden"
+                  min="1"
+                  max="24"
+                  autoFocus
+                />
+                <button
+                  onClick={() => setIsEditingEmergencyFund(false)}
+                  className="w-full px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition-colors"
+                >
+                  Opslaan
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-baseline justify-between text-xs">
+                  <span className="text-slate-500">Liquide middelen</span>
+                  <span className="font-medium text-slate-900">{euro(liquidNetWorth)}</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full transition-all",
+                      emergencyFundStatus === "excellent" ? "bg-emerald-500" :
+                      emergencyFundStatus === "good" ? "bg-blue-500" :
+                      emergencyFundStatus === "fair" ? "bg-amber-500" :
+                      "bg-rose-500"
+                    )}
+                    style={{ width: `${Math.min(100, emergencyFundPct)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className={cn(
+                    "font-medium",
+                    emergencyFundStatus === "excellent" ? "text-emerald-600" :
+                    emergencyFundStatus === "good" ? "text-blue-600" :
+                    emergencyFundStatus === "fair" ? "text-amber-600" :
+                    "text-rose-600"
+                  )}>
+                    {emergencyFundStatus === "excellent" && "Uitstekend 🎉"}
+                    {emergencyFundStatus === "good" && "Goed ✓"}
+                    {emergencyFundStatus === "fair" && "Voldoende"}
+                    {emergencyFundStatus === "insufficient" && "Onvoldoende"}
+                  </span>
+                  <span className="text-slate-500">Doel: {euro(emergencyFundTarget)}</span>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
