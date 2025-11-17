@@ -1,0 +1,61 @@
+<section class="card">
+  <header class="card__header">
+    <div>
+      <p class="eyebrow">Maandelijkse cashflow</p>
+      <p class="muted">Samenvatting van inkomen, sparen en totale kosten.</p>
+    </div>
+    <button type="button" class="icon-button" (click)="toggle()" [attr.aria-expanded]="isExpanded()">
+      <span class="material-icon" aria-hidden="true">⌄</span>
+    </button>
+  </header>
+
+  <div class="card__body">
+    <div class="stat-row">
+      <span class="muted">Inkomen</span>
+      <span class="value">{{ euro(estimatedMonthlyIncome()) }}</span>
+    </div>
+    <div class="stat-row">
+      <span class="muted">Sparen</span>
+      <span class="value">{{ euro(avgMonthlySavings()) }}</span>
+    </div>
+    <div class="stat-row stat-row--divider">
+      <span class="muted">Totale kosten</span>
+      <span class="value">{{ euro(avgMonthlySpending()) }}</span>
+    </div>
+
+    <div class="details" *ngIf="isExpanded()">
+      <div class="stat-row">
+        <span class="muted">Vaste</span>
+        <span class="value">
+          {{ euro(totalFixedMonthlyCosts()) }} ({{ fixedPctOfCosts() | number: '1.0-0' }}%)
+        </span>
+      </div>
+      <div class="stat-row">
+        <span class="muted">Overige</span>
+        <span class="value">
+          {{ euro(otherCosts()) }} ({{ otherPctOfCosts() | number: '1.0-0' }}%)
+        </span>
+      </div>
+
+      <div class="progress">
+        <div class="progress__label">
+          <span>Sparen vs kosten</span>
+          <span>{{ savingsPctOfIncome() | number: '1.0-0' }}% / {{ costsPctOfIncome() | number: '1.0-0' }}%</span>
+        </div>
+        <div class="progress__bar">
+          <div class="progress__fill savings" [style.width.%]="savingsPctOfIncome()"></div>
+        </div>
+      </div>
+
+      <div class="progress">
+        <div class="progress__label">
+          <span>Vaste vs overige</span>
+          <span>{{ fixedPctOfCosts() | number: '1.0-0' }}% / {{ otherPctOfCosts() | number: '1.0-0' }}%</span>
+        </div>
+        <div class="progress__bar">
+          <div class="progress__fill costs" [style.width.%]="fixedPctOfCosts()"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

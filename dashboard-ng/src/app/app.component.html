@@ -1,0 +1,332 @@
+<main class="layout">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Dashboard</p>
+      <h1>Financieel overzicht</h1>
+      <p class="muted">Realtime zicht op vermogen, cashflow en doelen.</p>
+    </div>
+    <div class="hero-figure">
+      <span>Huidig vermogen</span>
+      <strong>{{ euro(currentNetWorth()) }}</strong>
+    </div>
+  </header>
+
+  <section class="grid grid--three">
+    <article class="card">
+      <header class="card__header">
+        <div>
+          <p class="eyebrow">Totaal vermogen</p>
+          <p class="muted">Per {{ formatMonth(netWorthData()[netWorthData().length - 1]?.month ?? '2025-11') }}</p>
+        </div>
+        <button class="icon-button" type="button" (click)="toggleNetWorthExpanded()">
+          {{ isNetWorthExpanded() ? '−' : '+' }}
+        </button>
+      </header>
+      <div class="card__body">
+        <div class="headline">{{ euro(currentNetWorth()) }}</div>
+        <p class="muted">
+          Laatste maand {{ netWorthDelta() >= 0 ? '+' : '−' }}{{ euro(Math.abs(netWorthDelta())) }}
+        </p>
+        <div class="split" *ngIf="isNetWorthExpanded()">
+          <div>
+            <p class="muted">Liquide</p>
+            <p class="value">{{ euro(liquidNetWorth()) }} · {{ liquidPct() | number: '1.0-0' }}%</p>
+          </div>
+          <div>
+            <p class="muted">Beleggingen</p>
+            <p class="value">{{ euro(investmentsNetWorth()) }} · {{ investmentsPct() | number: '1.0-0' }}%</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="card">
+      <header class="card__header">
+        <p class="eyebrow">Verandering t.o.v. vorige maand</p>
+      </header>
+      <div class="card__body">
+        <span class="badge" [ngClass]="netWorthDelta() >= 0 ? 'badge--positive' : 'badge--negative'">
+          {{ netWorthDelta() >= 0 ? '↑' : '↓' }} {{ euro(Math.abs(netWorthDelta())) }}
+        </span>
+        <p class="muted">Netto stijging of daling van het vermogen.</p>
+      </div>
+    </article>
+
+    <article class="card">
+      <header class="card__header">
+        <p class="eyebrow">Netto verandering {{ lastPointYear() }}</p>
+      </header>
+      <div class="card__body">
+        <span class="badge" [ngClass]="ytdChange().change >= 0 ? 'badge--positive' : 'badge--negative'">
+          {{ ytdChange().change >= 0 ? '↑' : '↓' }} {{ euro(Math.abs(ytdChange().change)) }}
+        </span>
+        <p class="muted">{{ ytdChange().pct | number: '1.0-1' }}% sinds 1 januari.</p>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid grid--four metrics">
+    <article class="card">
+      <p class="eyebrow">Gemiddeld spaarsaldo</p>
+      <div class="headline">{{ euro(avgMonthlySavings()) }} / maand</div>
+      <p class="muted">≈ {{ euro(avgYearlySavings()) }} per jaar</p>
+    </article>
+    <article class="card">
+      <p class="eyebrow">Gemiddelde uitgaven</p>
+      <div class="headline">{{ euro(avgMonthlySpending()) }} / maand</div>
+      <p class="muted">Inkomen min spaargedrag.</p>
+    </article>
+    <article class="card">
+      <p class="eyebrow">Savings rate</p>
+      <div class="headline">{{ savingsPctOfIncome() | number: '1.0-1' }}%</div>
+      <div class="progress">
+        <div class="progress__bar">
+          <div class="progress__fill savings" [style.width.%]="savingsPctOfIncome()"></div>
+        </div>
+        <p class="muted">van totaal inkomen</p>
+      </div>
+    </article>
+    <article class="card">
+      <p class="eyebrow">Runway</p>
+      <div class="headline">{{ runwayMonths() | number: '1.1-1' }} maanden</div>
+      <p class="muted">Op basis van liquide middelen.</p>
+    </article>
+  </section>
+
+  <section class="card chart-card">
+    <header class="card__header">
+      <div>
+        <p class="eyebrow">Netto waarde</p>
+        <p class="muted">Geprojecteerde balans over 12 maanden: {{ euro(projectedBalance12m()) }}</p>
+      </div>
+      <div class="range-toggle">
+        <button
+          *ngFor="let option of ranges"
+          type="button"
+          [ngClass]="{ 'range-toggle__btn--active': range() === option }"
+          class="range-toggle__btn"
+          (click)="setRange(option)"
+        >
+          {{ rangeLabels[option] }}
+        </button>
+      </div>
+    </header>
+    <div class="chart-wrapper">
+      <canvas baseChart [type]="'line'" [data]="netWorthChartData()" [options]="netWorthChartOptions"></canvas>
+    </div>
+    <footer class="notes" *ngIf="filteredNotes().length">
+      <h4>Belangrijke gebeurtenissen</h4>
+      <div class="notes__list">
+        <div class="note" *ngFor="let note of filteredNotes()">
+          <span class="note__month">{{ formatMonth(note.month) }}</span>
+          <p>{{ note.note }}</p>
+        </div>
+      </div>
+    </footer>
+  </section>
+
+  <section class="grid grid--three goals">
+    <article class="card">
+      <p class="eyebrow">Jaarlijks spaardoel</p>
+      <div class="headline">{{ euro(targetProgress()) }} / {{ euro(yearlySavingsTarget()) }}</div>
+      <div class="progress">
+        <div class="progress__bar">
+          <div class="progress__fill savings" [style.width.%]="targetProgressPct()"></div>
+        </div>
+        <p class="muted">{{ targetProgressPct() | number: '1.0-0' }}% van doel bereikt</p>
+      </div>
+      <label class="form-label">Pas doel aan</label>
+      <input
+        type="number"
+        [value]="yearlySavingsTarget()"
+        (input)="updateYearlyTarget($any($event.target).valueAsNumber || 0)"
+        min="0"
+      />
+    </article>
+
+    <article class="card">
+      <p class="eyebrow">Geschat inkomen</p>
+      <div class="headline">{{ euro(estimatedMonthlyIncome()) }} / maand</div>
+      <label class="form-label">Werk inkomen bij</label>
+      <input
+        type="number"
+        [value]="estimatedMonthlyIncome()"
+        (input)="updateEstimatedIncome($any($event.target).valueAsNumber || 0)"
+        min="0"
+      />
+      <label class="form-label">Noodfonds maanden</label>
+      <input
+        type="number"
+        [value]="emergencyFundMonths()"
+        (input)="updateEmergencyFundMonths($any($event.target).valueAsNumber || 0)"
+        min="0"
+      />
+    </article>
+
+    <app-cashflow-card
+      class="card"
+      [estimatedMonthlyIncome]="estimatedMonthlyIncome()"
+      [avgMonthlySavings]="avgMonthlySavings()"
+      [avgMonthlySpending]="avgMonthlySpending()"
+      [totalFixedMonthlyCosts]="totalFixedMonthlyCosts()"
+      [otherCosts]="otherCosts()"
+      [fixedPctOfCosts]="fixedPctOfCosts()"
+      [otherPctOfCosts]="otherPctOfCosts()"
+      [savingsPctOfIncome]="savingsPctOfIncome()"
+      [costsPctOfIncome]="costsPctOfIncome()"
+    />
+  </section>
+
+  <section class="grid grid--three insights">
+    <article class="card">
+      <p class="eyebrow">Doelvermogen</p>
+      <div class="headline">{{ euro(goalAmount()) }}</div>
+      <p class="muted" *ngIf="goalAlreadyReached()">Doel bereikt! 🎉</p>
+      <p class="muted" *ngIf="!goalAlreadyReached() && goalEta().label">
+        Verwacht rond {{ goalEta().label }} ({{ goalEta().months | number: '1.0-0' }} mnd)
+      </p>
+      <label class="form-label">Pas doel aan</label>
+      <input type="number" [value]="goalAmount()" (input)="updateGoalAmount($any($event.target).valueAsNumber || 0)" min="0" />
+    </article>
+
+    <article class="card">
+      <p class="eyebrow">Financial Independence</p>
+      <div class="headline">{{ fiPct() | number: '1.0-1' }}%</div>
+      <p class="muted">Target (4% rule): {{ euro(fiTarget()) }}</p>
+      <p class="muted" *ngIf="avgMonthlySavings() > 0">~{{ yearsToFI() | number: '1.1-1' }} jaar ({{ fiDateString() }})</p>
+    </article>
+
+    <article class="card">
+      <p class="eyebrow">Noodfonds</p>
+      <div class="headline">{{ emergencyFundPct() | number: '1.0-0' }}%</div>
+      <p class="muted">{{ euro(liquidNetWorth()) }} beschikbaar / {{ euro(emergencyFundTarget()) }} doel</p>
+      <p class="muted status status--{{ emergencyFundStatus() }}">Status: {{ emergencyFundStatus() }}</p>
+    </article>
+  </section>
+
+  <section class="grid grid--two distribution">
+    <article class="card">
+      <header class="card__header">
+        <div>
+          <p class="eyebrow">Accounts</p>
+          <p class="muted">Liquide vs beleggingen</p>
+        </div>
+        <button class="link" type="button" (click)="toggleTypePercentages()">
+          {{ showTypePercentages() ? 'Toon bedragen' : 'Toon %' }}
+        </button>
+      </header>
+      <div class="distribution__content">
+        <div class="chart-wrapper chart-wrapper--small">
+          <canvas baseChart [type]="'doughnut'" [data]="accountChartData()" [options]="doughnutOptions"></canvas>
+        </div>
+        <ul class="legend">
+          <li *ngFor="let slice of accountTypeData(); let idx = index">
+            <span class="dot" [style.background-color]="accountChartData().datasets[0].backgroundColor?.[idx] as string"></span>
+            <div>
+              <p>{{ slice.name }}</p>
+              <small *ngIf="!showTypePercentages()">{{ euro(slice.value) }}</small>
+              <small *ngIf="showTypePercentages()">
+                {{ (slice.value / accountDistributionTotal()) * 100 | number: '1.0-0' }}%
+              </small>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="card">
+      <header class="card__header">
+        <div>
+          <p class="eyebrow">Banken</p>
+          <p class="muted">Verspreiding over instellingen</p>
+        </div>
+        <button class="link" type="button" (click)="toggleBankPercentages()">
+          {{ showBankPercentages() ? 'Toon bedragen' : 'Toon %' }}
+        </button>
+      </header>
+      <div class="distribution__content">
+        <div class="chart-wrapper chart-wrapper--small">
+          <canvas baseChart [type]="'doughnut'" [data]="bankChartData()" [options]="doughnutOptions"></canvas>
+        </div>
+        <ul class="legend">
+          <li *ngFor="let slice of bankDistributionData(); let idx = index">
+            <span class="dot" [style.background-color]="bankChartData().datasets[0].backgroundColor?.[idx] as string"></span>
+            <div>
+              <p>{{ slice.name }}</p>
+              <small *ngIf="!showBankPercentages()">{{ euro(slice.value) }}</small>
+              <small *ngIf="showBankPercentages()">
+                {{ (slice.value / bankDistributionTotal()) * 100 | number: '1.0-0' }}%
+              </small>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </article>
+  </section>
+
+  <section class="card fixed-costs">
+    <header class="card__header">
+      <div>
+        <p class="eyebrow">Vaste kosten</p>
+        <p class="muted">Totaal {{ euro(totalFixedMonthlyCosts()) }} / maand</p>
+      </div>
+    </header>
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Naam</th>
+            <th>Bedrag</th>
+            <th>Frequentie</th>
+            <th>Account</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let cost of fixedCosts(); let idx = index">
+            <td>{{ cost.name }}</td>
+            <td>{{ euro(cost.amount) }}</td>
+            <td>{{ cost.frequency }}</td>
+            <td>{{ cost.account || '—' }}</td>
+            <td>
+              <button class="link" type="button" (click)="removeFixedCost(idx)">Verwijder</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="cost-form">
+      <h4>Nieuwe kost toevoegen</h4>
+      <div class="grid grid--two">
+        <label>
+          <span>Naam</span>
+          <input type="text" [value]="newCost().name" (input)="updateNewCost({ name: $any($event.target).value })" />
+        </label>
+        <label>
+          <span>Bedrag</span>
+          <input type="number" [value]="newCost().amount" (input)="updateNewCost({ amount: $any($event.target).valueAsNumber || 0 })" />
+        </label>
+        <label>
+          <span>Frequentie</span>
+          <select [value]="newCost().frequency" (change)="updateNewCost({ frequency: $any($event.target).value })">
+            <option value="monthly">Maandelijks</option>
+            <option value="quarterly">Per kwartaal</option>
+            <option value="yearly">Jaarlijks</option>
+          </select>
+        </label>
+        <label>
+          <span>Type</span>
+          <select [value]="newCost().kind" (change)="updateNewCost({ kind: $any($event.target).value })">
+            <option value="vast">Vast</option>
+            <option value="variabel">Variabel</option>
+          </select>
+        </label>
+        <label>
+          <span>Account</span>
+          <input type="text" [value]="newCost().account || ''" (input)="updateNewCost({ account: $any($event.target).value })" />
+        </label>
+      </div>
+      <button class="primary" type="button" (click)="addFixedCost()">Toevoegen</button>
+    </div>
+  </section>
+</main>
